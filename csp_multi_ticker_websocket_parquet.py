@@ -235,7 +235,7 @@ def ticker_statistics_subgraph(
     print(f"Creating statistics sub-graph for ticker: {pair}")
     
     timer1m = csp.timer(timedelta(minutes=1))
-    timer_reset = csp.timer(timedelta(hours=6))
+    timer_reset = csp.timer(timedelta(hours=24))
     # Calculate statistics for this ticker
     volumn = csp.math.multiply(trades.price, trades.size)
     trade_count = csp.stats.count(trades.price, interval=timedelta(seconds=60), min_window=timedelta(seconds=1), trigger=timer1s)
@@ -361,7 +361,7 @@ def main():
     print(f"Using CSP dynamic processing for multiple tickers")
 
     start = datetime.now()
-    end = start + timedelta(hours=5)
+    end = start + timedelta(hours=24)
     
     # Generate filenames for parquet files
     parquet_dir = "/home/ziyulu1997/live_stream_visualization/parquet_data"
