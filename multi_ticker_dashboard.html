@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+    <title>CSP Crypto Trade Live Dashboard</title>
+
+    <!-- Perspective CSS and WASM preloads -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/wasm/perspective-viewer.wasm" as="fetch" type="application/wasm" crossorigin="anonymous" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@finos/perspective/dist/wasm/perspective-server.wasm" as="fetch" type="application/wasm" crossorigin="anonymous" />
+    <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/css/themes.css" />
+
+    <style>
+        body {
+            background: #f5f5f5;
+            color: white;
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Light theme styles */
+        body.light-theme {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        body.light-theme #header {
+            border-bottom: 1px solid #ccc;
+        }
+
+        body.light-theme .viewer-row {
+            background: #ffffff;
+        }
+
+        body.light-theme .viewer-header {
+            background: #f5f5f5;
+            border-bottom: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .dashboard-grid {
+            background: #ffffff;
+        }
+
+        body.light-theme .theme-toggle {
+            border: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .theme-toggle:hover {
+            color: #ffffff;
+            background-color: #000000;
+            border-color: #000000;
+        }
+
+        body.light-theme .status-item {
+            color: #666;
+            font-size: 14px;
+        }
+
+        body.light-theme .status-value {
+            color: #000000;
+        }
+
+        body.light-theme .title {
+            color: #000000;
+        }
+
+        body.light-theme .freq-select {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .frequency-controls label {
+            color: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        #header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 1px solid #666;
+            padding: 8px 14px;
+            justify-content: space-between;
+        }
+
+        #header .logo {
+            display: inline-flex;
+            margin-right: 14px;
+        }
+
+        .title {
+            height: 40px;
+            font-size: 18px;
+            padding: 10px 0px;
+            margin-right: 4px;
+            margin-left: 14px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+            color: #f4f5f6;
+            font-weight: bold;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .theme-toggle {
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            font-size: 14px;
+            appearance: none;
+            background-color: transparent;
+            border: 1px solid #666;
+            border-radius: 2px;
+            padding: 8px 14px;
+            color: #f4f5f6;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+            height: 40px;
+        }
+
+        .theme-toggle:hover {
+            color: #242526;
+            background-color: #f4f5f6;
+            border-color: #f4f5f6;
+        }
+
+        .status-item {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .status-value {
+            color: #f4f5f6;
+            font-weight: bold;
+        }
+
+        .frequency-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .frequency-controls label {
+            color: #f4f5f6;
+        }
+
+        .freq-select {
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            border: 1px solid #666;
+            border-radius: 2px;
+            padding: 4px 8px;
+            color: #f4f5f6;
+            cursor: pointer;
+        }
+
+        .ticker-selector-section {
+            padding: 20px 0;
+            margin: 20px 0;
+            background: transparent;
+        }
+
+        .ticker-selector-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .ticker-selector-label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #f4f5f6;
+        }
+
+        body.light-theme .ticker-selector-label {
+            color: #000000;
+        }
+
+        .ticker-button {
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            font-size: 14px;
+            background-color: #2a2a2a;
+            border: 2px solid #666;
+            border-radius: 4px;
+            padding: 8px 16px;
+            color: #f4f5f6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ticker-button:hover {
+            background-color: #404040;
+            border-color: #888;
+        }
+
+        .ticker-button.active {
+            background-color: #1976d2;
+            border-color: #1976d2;
+            color: #ffffff;
+        }
+
+        body.light-theme .ticker-button {
+            background-color: #ffffff;
+            border: 2px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .ticker-button:hover {
+            background-color: #f0f0f0;
+            border-color: #999;
+        }
+
+        body.light-theme .ticker-button.active {
+            background-color: #1976d2;
+            border-color: #1976d2;
+            color: #ffffff;
+        }
+
+        .ticker-dropdown-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ticker-dropdown-label {
+            color: #f4f5f6;
+            font-size: 14px;
+        }
+
+        body.light-theme .ticker-dropdown-label {
+            color: #000000;
+        }
+
+        .dashboard-grid {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            gap: 1px;
+            background: #e0e0e0;
+            padding: 0 8%;
+        }
+
+        .viewer-row {
+            flex: 1 1 auto;
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            min-height: 250px;
+        }
+
+        .viewer-container {
+            flex: 1 1 auto;
+            background: #242526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .viewer-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #666;
+            font-size: 16px;
+            color: #f4f5f6;
+            background: #e8e8e8;
+            font-weight: bold;
+        }
+
+        perspective-viewer {
+            flex: 1 1 auto;
+            border: none;
+            font-size: 16px;
+        }
+
+        /* Split layout for trades and statistics */
+        .split-row {
+            display: flex;
+            flex: 1 1 auto;
+            gap: 1px;
+        }
+
+        .split-left, .split-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Full width row */
+        .full-row {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Uniform height for all charts and tables */
+        #trades-table,
+        #statistics-table,
+        #size-treemap,
+        #volume-treemap,
+        #highest-returns-chart,
+        #lowest-returns-chart,
+        #buy-pressure-chart,
+        #price-chart,
+        #volatility-chart {
+            min-height: 400px;
+        }
+
+        /* Make all split rows taller to accommodate uniform chart heights */
+        .split-row {
+            min-height: 450px;
+        }
+
+        .split-row .viewer-row {
+            min-height: 400px;
+        }
+
+        /* Triple split layout for return ranking and buy pressure */
+        .triple-split-row {
+            display: flex;
+            gap: 1px;
+        }
+
+        .triple-left,
+        .triple-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .triple-middle {
+            display: none;
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <div id="app">
+        <div id="header">
+            <div class="header-left">
+                <label class="title">Multi-Ticker Crypto Live-Streaming Dashboard</label>
+            </div>
+
+            <div class="header-right">
+                <div class="status-bar">
+                    <div class="status-item">
+                        Trades WS: <span class="status-value" id="trades-status">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        Stats WS: <span class="status-value" id="stats-status">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        Minutes passed since app started: <span class="status-value" id="trade-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        Active Pairs: <span class="status-value" id="active-pairs">0</span>
+                    </div>
+                    <div class="status-item">
+                        Updated: <span class="status-value" id="last-update">Never</span>
+                    </div>
+                </div>
+                <button class="theme-toggle" id="theme-toggle">Light</button>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Multi-Ticker Tables Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Raw Data: Live Trades Monitoring</div>
+                        <perspective-viewer id="trades-table"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">CSP-processed Data: Synchronized minute-level Statistics</div>
+                        <perspective-viewer id="statistics-table"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Ticker Treemaps Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Trade Count (Last 10 minutes)</div>
+                        <perspective-viewer id="size-treemap"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Trade Volume (Last 1 minute)</div>
+                        <perspective-viewer id="volume-treemap"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return and Buy Pressure Analysis Row -->
+            <div class="split-row triple-split-row">
+                <div class="triple-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Returns vs Volitality (Last 1 minute)</div>
+                        <perspective-viewer id="highest-returns-chart"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="triple-middle">
+                    <div class="viewer-row">
+                        <div class="viewer-header"></div>
+                        <perspective-viewer id="lowest-returns-chart" style="display: none;"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="triple-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Buy Side Pressure vs Trading Volume (Last 1 minute)</div>
+                        <perspective-viewer id="buy-pressure-chart"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ticker Selection Section -->
+            <div class="ticker-selector-section">
+                <div class="ticker-selector-container">
+                    <span class="ticker-selector-label">Select Chart Ticker:</span>
+                    <button class="ticker-button active" data-ticker="BTC-USD">BTC-USD</button>
+                    <button class="ticker-button" data-ticker="ETH-USD">ETH-USD</button>
+                    <button class="ticker-button" data-ticker="SOL-USD">SOL-USD</button>
+                    <button class="ticker-button" data-ticker="XRP-USD">XRP-USD</button>
+                    <button class="ticker-button" data-ticker="DOGE-USD">DOGE-USD</button>
+                    <div class="ticker-dropdown-container">
+                        <span class="ticker-dropdown-label">All Tickers:</span>
+                        <select id="ticker-select" class="freq-select">
+                            <option value="BTC-USD" selected>BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                            <option value="LTC-USD">LTC-USD</option>
+                            <option value="XRP-USD">XRP-USD</option>
+                            <option value="ADA-USD">ADA-USD</option>
+                            <option value="SOL-USD">SOL-USD</option>
+                            <option value="DOGE-USD">DOGE-USD</option>
+                            <option value="DOT-USD">DOT-USD</option>
+                            <option value="AVAX-USD">AVAX-USD</option>
+                            <option value="LINK-USD">LINK-USD</option>
+                            <option value="MATIC-USD">MATIC-USD</option>
+                            <option value="UNI-USD">UNI-USD</option>
+                            <option value="ATOM-USD">ATOM-USD</option>
+                            <option value="ALGO-USD">ALGO-USD</option>
+                            <option value="VET-USD">VET-USD</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Ticker Analysis Charts Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Price Moving Average</div>
+                        <perspective-viewer id="price-chart"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Volatility Monitoring</div>
+                        <perspective-viewer id="volatility-chart"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Perspective JavaScript -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/cdn/perspective-viewer.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-datagrid/dist/cdn/perspective-viewer-datagrid.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-d3fc/dist/cdn/perspective-viewer-d3fc.js"></script>
+    <script type="module" src="multi_ticker_client.js"></script>
+</body>
+</html>

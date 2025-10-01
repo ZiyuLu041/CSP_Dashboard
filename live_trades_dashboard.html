@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+    <title>Live Trading Dashboard - Trades & Statistics</title>
+
+    <!-- Perspective CSS and WASM preloads -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/wasm/perspective-viewer.wasm" as="fetch" type="application/wasm" crossorigin="anonymous" />
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@finos/perspective/dist/wasm/perspective-server.wasm" as="fetch" type="application/wasm" crossorigin="anonymous" />
+    <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/css/themes.css" />
+
+    <style>
+        body {
+            background: #242526;
+            color: white;
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Light theme styles */
+        body.light-theme {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        body.light-theme #header {
+            border-bottom: 1px solid #ccc;
+        }
+
+        body.light-theme .viewer-row {
+            background: #ffffff;
+        }
+
+        body.light-theme .viewer-header {
+            background: #f5f5f5;
+            border-bottom: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .dashboard-grid {
+            background: #ccc;
+        }
+
+        body.light-theme .theme-toggle {
+            border: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .theme-toggle:hover {
+            color: #ffffff;
+            background-color: #000000;
+            border-color: #000000;
+        }
+
+        body.light-theme .status-item {
+            color: #666;
+            font-size: 14px;
+        }
+
+        body.light-theme .status-value {
+            color: #000000;
+        }
+
+        body.light-theme .title {
+            color: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        #header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 1px solid #666;
+            padding: 8px 14px;
+            justify-content: space-between;
+        }
+
+        #header .logo {
+            display: inline-flex;
+            margin-right: 14px;
+        }
+
+        .title {
+            height: 40px;
+            font-size: 18px;
+            padding: 10px 0px;
+            margin-right: 4px;
+            margin-left: 14px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+            color: #f4f5f6;
+            font-weight: bold;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .theme-toggle {
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            font-size: 14px;
+            appearance: none;
+            background-color: transparent;
+            border: 1px solid #666;
+            border-radius: 2px;
+            padding: 8px 14px;
+            color: #f4f5f6;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+            height: 40px;
+        }
+
+        .theme-toggle:hover {
+            color: #242526;
+            background-color: #f4f5f6;
+            border-color: #f4f5f6;
+        }
+
+        .status-item {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .status-value {
+            color: #f4f5f6;
+            font-weight: bold;
+        }
+
+        .frequency-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .frequency-controls label {
+            color: #f4f5f6;
+        }
+
+        .freq-select {
+            font-family: "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo",
+                "Consolas", "Liberation Mono", monospace;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            border: 1px solid #666;
+            border-radius: 2px;
+            padding: 4px 8px;
+            color: #f4f5f6;
+            cursor: pointer;
+        }
+
+        body.light-theme .freq-select {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            color: #000000;
+        }
+
+        body.light-theme .frequency-controls label {
+            color: #000000;
+        }
+
+        .dashboard-grid {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            gap: 1px;
+            background: #666;
+            padding: 0 8%;
+        }
+
+        .viewer-row {
+            flex: 1 1 auto;
+            background: #242526;
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+
+        .viewer-container {
+            flex: 1 1 auto;
+            background: #242526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .viewer-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #666;
+            font-size: 16px;
+            color: #f4f5f6;
+            background: #2a2a2a;
+            font-weight: bold;
+        }
+
+        perspective-viewer {
+            flex: 1 1 auto;
+            border: none;
+            font-size: 16px;
+        }
+
+        /* Increase font sizes for Perspective plots */
+        perspective-viewer * {
+            font-size: 16px !important;
+        }
+
+        /* Table headers and data */
+        perspective-viewer th,
+        perspective-viewer td {
+            font-size: 16px !important;
+        }
+
+        /* Chart axis labels and legends */
+        perspective-viewer .axis text,
+        perspective-viewer .legend text,
+        perspective-viewer .chart-title {
+            font-size: 15px !important;
+        }
+
+        /* Y-axis ticks and labels - larger font */
+        perspective-viewer .y-axis text,
+        perspective-viewer .axis.y text,
+        perspective-viewer g.y.axis text,
+        perspective-viewer .tick text,
+        perspective-viewer .y.axis .tick text,
+        perspective-viewer svg text.axis-label,
+        perspective-viewer svg .axis-text {
+            font-size: 24px !important;
+            font-weight: 500 !important;
+        }
+
+        /* X-axis ticks and labels */
+        perspective-viewer .x-axis text,
+        perspective-viewer .axis.x text,
+        perspective-viewer g.x.axis text,
+        perspective-viewer .x.axis .tick text {
+            font-size: 24px !important;
+            font-weight: 500 !important;
+        }
+
+        /* Chart tooltips */
+        perspective-viewer .tooltip {
+            font-size: 15px !important;
+        }
+
+        /* Settings panel and controls */
+        perspective-viewer .perspective-viewer-toolbar,
+        perspective-viewer .perspective-viewer-side-panel,
+        perspective-viewer .perspective-viewer-column-list {
+            font-size: 16px !important;
+        }
+
+        /* Split layout for trades and statistics */
+        .split-row {
+            display: flex;
+            flex: 1 1 auto;
+            gap: 1px;
+        }
+
+        .split-left, .split-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="header">
+            <div class="header-left">
+                <label class="title">Live Trading Dashboard - BTC/USD</label>
+            </div>
+
+            <div class="header-right">
+                <div class="status-bar">
+                    <div class="status-item">
+                        Trades WS: <span class="status-value" id="trades-status">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        Stats WS: <span class="status-value" id="stats-status">Connecting...</span>
+                    </div>
+                    <div class="status-item">
+                        Trades: <span class="status-value" id="trade-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        Updated: <span class="status-value" id="last-update">Never</span>
+                    </div>
+                </div>
+                <button class="theme-toggle" id="theme-toggle">Dark</button>
+
+                <!-- Update Frequency Controls -->
+                <div class="frequency-controls">
+                    <label for="treemap-freq">Treemap Refresh:</label>
+                    <select id="treemap-freq" class="freq-select">
+                        <option value="1000">1s</option>
+                        <option value="2000">2s</option>
+                        <option value="5000" selected>5s</option>
+                        <option value="10000">10s</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Tables Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Live Trades Feed</div>
+                        <perspective-viewer id="trades-table"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Real-time Statistics</div>
+                        <perspective-viewer id="statistics-table"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trade Distribution Treemaps Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Trade Size Distribution</div>
+                        <perspective-viewer id="size-treemap"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Trade Volume Distribution</div>
+                        <perspective-viewer id="volume-treemap"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Price Chart</div>
+                        <perspective-viewer id="price-chart"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Sell/Buy Volume Analysis</div>
+                        <perspective-viewer id="volume-chart"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Indicators Row -->
+            <div class="split-row">
+                <div class="split-left">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Price Analysis (VWA + EWA 60s/120s/180s)</div>
+                        <perspective-viewer id="ewa-chart"></perspective-viewer>
+                    </div>
+                </div>
+                <div class="split-right">
+                    <div class="viewer-row">
+                        <div class="viewer-header">Volatility Analysis (60s/5min MA)</div>
+                        <perspective-viewer id="risk-chart"></perspective-viewer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Perspective JavaScript -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/cdn/perspective-viewer.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-datagrid/dist/cdn/perspective-viewer-datagrid.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-d3fc/dist/cdn/perspective-viewer-d3fc.js"></script>
+    <script type="module" src="live_trades_client.js"></script>
+</body>
+</html>
