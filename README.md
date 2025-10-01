@@ -8,8 +8,8 @@ This application streams live cryptocurrency trade data from Polygon.io, process
 
 ## Components
 
-### 1. `csp_multi_ticker_websocket.py`
-**CSP Backend Pipeline**
+### 1. `csp_multi_ticker_websocket_parquet.py`
+**CSP Backend Pipeline with Parquet Storage**
 - Connects to Polygon.io WebSocket API for live crypto trades
 - Dynamically processes multiple cryptocurrency pairs simultaneously (BTC, ETH, SOL, XRP, DOGE, etc.)
 - Computes real-time statistics:
@@ -20,11 +20,21 @@ This application streams live cryptocurrency trade data from Polygon.io, process
   - Buy/sell order flow analysis
   - Buy-side pressure ratio
 - Publishes data via CSP's native WebSocket server on port 7678
+- **Persists data to Parquet files**:
+  - `parquet_data/crypto_trades.parquet` - Raw trade data
+  - `parquet_data/crypto_statistics.parquet` - Computed statistics
+  - 24-hour runtime for extended data collection
+  - 24-hour reset cycle for statistics
 
 **Usage:**
 ```bash
-python csp_multi_ticker_websocket.py
+python csp_multi_ticker_websocket_parquet.py
 ```
+
+### 1b. `csp_multi_ticker_websocket.py`
+**CSP Backend Pipeline (In-Memory Only)**
+- Same functionality as parquet version but without persistent storage
+- Use for testing or when storage is not needed
 
 ### 2. `multi_ticker_dashboard.html`
 **Frontend Dashboard UI**
@@ -78,6 +88,16 @@ python server.py
 bash restart_dashboard.sh
 ```
 
+### 6. `check_parquet.py`
+**Parquet Data Inspector**
+- Reads and displays parquet file contents
+- Useful for verifying data persistence
+
+### 7. `save_parquet_to_excel.py`
+**Data Export Tool**
+- Converts parquet files to Excel format for analysis
+- Exports first 1000 rows of statistics
+
 ## Quick Start
 
 ### Prerequisites
@@ -95,10 +115,11 @@ pip install csp-adapter polygon-api-client flask gunicorn
 
 **Step 1: Start CSP Backend**
 ```bash
-python csp_multi_ticker_websocket.py
+python csp_multi_ticker_websocket_parquet.py
 ```
 - Listens on `ws://localhost:7678`
 - Streams trades and statistics tables
+- Saves data to `parquet_data/` directory
 
 **Step 2: Start Web Server**
 ```bash
@@ -120,13 +141,20 @@ bash restart_dashboard.sh
 └────────┬────────┘
          │ WebSocket
          ▼
-┌──────────────────────────┐
-│  CSP Pipeline (Port 7678) │
-│  • Dynamic demultiplexing │
-│  • Statistical computation │
-│  • WebSocket publishing    │
-└────────┬─────────────────┘
-         │ WebSocket
+┌──────────────────────────────────┐
+│  CSP Pipeline (Port 7678)         │
+│  • Dynamic demultiplexing         │
+│  • Statistical computation        │
+│  • WebSocket publishing           │
+│  • Parquet data persistence       │
+└────────┬─────────────────────────┘
+         │ WebSocket       │ Parquet files
+         │                 ▼
+         │         ┌──────────────────┐
+         │         │  parquet_data/   │
+         │         │  • crypto_trades │
+         │         │  • crypto_stats  │
+         │         └──────────────────┘
          ▼
 ┌──────────────────────────┐
 │  Perspective Dashboard    │
@@ -158,10 +186,13 @@ bash restart_dashboard.sh
 
 ## Configuration
 
-### CSP Backend (`csp_multi_ticker_websocket.py`)
+### CSP Backend (`csp_multi_ticker_websocket_parquet.py`)
 ```python
-API_KEY = "your_polygon_api_key"  # Line 296
-port = 7678                        # Line 345
+API_KEY = "your_polygon_api_key"     # Line ~340
+port = 7678                          # Line ~355
+parquet_dir = "path/to/parquet_data" # Line 364
+runtime = timedelta(hours=24)        # Line 364 (end = start + runtime)
+reset_interval = timedelta(hours=24) # Line 238 (timer_reset)
 ```
 
 ### Frontend Client (`multi_ticker_client.js`)
@@ -179,9 +210,12 @@ app.run(host='0.0.0.0', port=8096)  # Line 19
 
 1. **Input**: Polygon.io streams tick-level trades via WebSocket
 2. **Processing**: CSP computes statistics every 1 second
-3. **Output**: CSP publishes to WebSocket tables (trades + statistics)
+3. **Output**:
+   - CSP publishes to WebSocket tables (trades + statistics)
+   - CSP writes to Parquet files for persistence
 4. **Visualization**: Perspective consumes streams and renders updates
 5. **User Interaction**: Ticker selection triggers chart re-filtering
+6. **Storage**: Parquet files enable historical analysis and replay
 
 ## Performance
 
@@ -193,8 +227,13 @@ app.run(host='0.0.0.0', port=8096)  # Line 19
 ## Troubleshooting
 
 ### CSP Backend not connecting to Polygon
-- Check API key validity in `csp_multi_ticker_websocket.py`
+- Check API key validity in `csp_multi_ticker_websocket_parquet.py`
 - Verify network connectivity to `wss://socket.polygon.io`
+
+### Parquet files not being created
+- Check write permissions for `parquet_data/` directory
+- Verify CSP backend is running without errors
+- Ensure sufficient disk space for data storage
 
 ### Dashboard shows "Connecting..." forever
 - Ensure CSP backend is running on port 7678
@@ -210,13 +249,19 @@ app.run(host='0.0.0.0', port=8096)  # Line 19
 
 ```
 live_stream_visualization/
-├── csp_multi_ticker_websocket.py   # CSP backend
-├── multi_ticker_dashboard.html     # Dashboard UI
-├── multi_ticker_client.js          # Frontend logic
-├── server.py                       # Flask web server
-├── restart_dashboard.sh            # Deployment script
-├── PAPER.md                        # Technical paper
-└── README.md                       # This file
+├── csp_multi_ticker_websocket_parquet.py  # CSP backend with Parquet storage
+├── csp_multi_ticker_websocket.py          # CSP backend (in-memory only)
+├── multi_ticker_dashboard.html            # Dashboard UI
+├── multi_ticker_client.js                 # Frontend logic
+├── server.py                              # Flask web server
+├── restart_dashboard.sh                   # Deployment script
+├── check_parquet.py                       # Parquet inspector
+├── save_parquet_to_excel.py               # Excel export tool
+├── parquet_data/                          # Persistent data storage
+│   ├── crypto_trades.parquet              # Raw trades
+│   └── crypto_statistics.parquet          # Computed stats
+├── PAPER.md                               # Technical paper
+└── README.md                              # This file
 ```
 
 
