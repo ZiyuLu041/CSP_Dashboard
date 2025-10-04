@@ -297,7 +297,7 @@ def crypto_multi_ticker_websocket_pipeline(port: int, trades_parquet_file: str=N
     print("Building Multi-Ticker Crypto CSP pipeline with Dynamic processing + Parquet storage...")
 
     # Configuration
-    API_KEY = "4hweaKRjg0NGhkf4YpbHrrn2_8V6AXdp"
+    API_KEY = ""
     FEED = "RealTime"
     MARKET = "Crypto"
 
